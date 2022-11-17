@@ -37,6 +37,7 @@ void setup()
 unsigned long oldTime = 0;
 bool ledON = true;
 bool blinky = false;
+char sec = 0;
 
 String old_ADCO;
 String old_OPTARIF;
@@ -62,52 +63,59 @@ void loop()
 	else
 	{
 
-		if (old_ADCO != linky.ADCO)
+		if (millis() - oldTime >= 1000)
+		{
+			ledON = !ledON;
+			oldTime = millis();
+			sec = (sec + 1) % 240;
+		}
+
+		if (old_ADCO != linky.ADCO || (sec % 20) == 0 )
 		{
 			client.publish("linky/ADCO", linky.ADCO.c_str());
 			old_ADCO = linky.ADCO;
 		}
-		if (old_OPTARIF != linky.OPTARIF)
+		if (old_OPTARIF != linky.OPTARIF || (sec % 20) == 0 )
 		{
 			client.publish("linky/OPTARIF", linky.OPTARIF.c_str());
 			old_OPTARIF = linky.OPTARIF;
 		}
-		if (old_ISOUSC != linky.ISOUSC)
+		if (old_ISOUSC != linky.ISOUSC || (sec % 20) == 0 )
 		{
 			client.publish("linky/ISOUSC", String(linky.ISOUSC).c_str());
 			old_ISOUSC = linky.ISOUSC;
 		}
-		if (old_BASE != linky.BASE)
+		if (old_BASE != linky.BASE || (sec % 20) == 0 )
 		{
 			client.publish("linky/BASE", linky.BASE.c_str());
 			old_BASE = linky.BASE;
 		}
-		if (old_PTEC != linky.PTEC)
+		if (old_PTEC != linky.PTEC || (sec % 20) == 0 )
 		{
 			client.publish("linky/PTEC", linky.PTEC.c_str());
 			old_PTEC = linky.PTEC;
 		}
-		if (old_IINST != linky.IINST)
+		if (old_IINST != linky.IINST || (sec % 20) == 0 )
 		{
 			client.publish("linky/IINST", String(linky.IINST).c_str());
 			old_IINST = linky.IINST;
 		}
-		if (old_IMAX != linky.IMAX)
+		if (old_IMAX != linky.IMAX || (sec % 20) == 0 )
 		{
 			client.publish("linky/IMAX", String(linky.IMAX).c_str());
 			old_IMAX = linky.IMAX;
 		}
-		if (old_PAPP != linky.PAPP)
+		if (old_PAPP != linky.PAPP || (sec % 20) == 0 )
 		{
 			client.publish("linky/PAPP", String(linky.PAPP).c_str());
 			old_PAPP = linky.PAPP;
 		}
-		if (old_HHPHC != linky.HHPHC)
+		if (old_HHPHC != linky.HHPHC || (sec % 20) == 0 )
 		{
 			client.publish("linky/HHPHC", linky.HHPHC.c_str());
 			old_HHPHC = linky.HHPHC;
 		}
-		if (old_MOTDETAT != linky.MOTDETAT)
+		if (old_MOTDETAT != linky.MOTDETAT || (sec % 20) == 0 )
 		{
 			client.publish("linky/MOTDETAT", linky.MOTDETAT.c_str());
 			old_MOTDETAT = linky.MOTDETAT;
@@ -126,12 +134,7 @@ void loop()
 
 		blinky = ratio >= 1;
 
-		if (millis() - oldTime >= 500)
-		{
-			ledON = !ledON;
-			oldTime = millis();
-		}
-
+	
 		if ((ledON && blinky) || !blinky)
 		{
 			led.setPixelColor(0, red, green, blue);
