@@ -16,7 +16,7 @@ public:
 	String ADCO;
 	String OPTARIF;
 	byte ISOUSC;
-	String BASE;
+	long BASE;
 	String PTEC;
 	int IINST;
 	int IMAX;

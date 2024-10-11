@@ -74,7 +74,7 @@ void Linky::loop()
 				}
 				if (key == "BASE")
 				{
-					this->BASE = value;
+					this->BASE = atol(value.c_str());
 				}
 				if (key == "PTEC")
 				{

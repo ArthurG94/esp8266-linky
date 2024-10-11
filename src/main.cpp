@@ -1,18 +1,15 @@
 
 #include <ESP8266WiFi.h>
-#include <DNSServer.h>
-#include <PubSubClient.h>
+#include <ESP8266WebServer.h>
+#include <uri/UriBraces.h>
 #include <WiFiManager.h>
 
 #include <Linky.h>
 #include <SoftwareSerial.h>
 #include <Adafruit_NeoPixel.h>
 
-#define MQTT_SERVER "192.168.1.101"
-#define MQTT_PORT 1883
-
 WiFiClient espClient;
-PubSubClient client(espClient);
+ESP8266WebServer server(80);
 Linky linky;
 Adafruit_NeoPixel led(1, 14, NEO_GRB);
 
@@ -20,7 +17,9 @@ void setup()
 {
 	Serial.begin(9600);
 	WiFiManager wifiManager;
+
 	led.begin();
+	led.setPixelColor(0, 255, 0, 255);
 	led.show();
 
 	if (!wifiManager.autoConnect("Linky AP", "123456789"))
@@ -30,126 +29,70 @@ void setup()
 		delay(1000);
 	}
 
-	client.setServer(MQTT_SERVER, MQTT_PORT);
+	server.on(UriBraces("/"), []() { server.send(200, "application/json", "{\"ADCO\":\"" + linky.ADCO + "\"," + 
+	"\"OPTARIF\":\"" + linky.OPTARIF + "\"," + 
+	"\"ISOUSC\":" + String(linky.ISOUSC) + "," + 
+	"\"BASE\":" + String(linky.BASE) + "," + 
+	"\"PTEC\":\"" + linky.PTEC + "\"," + 
+	"\"IINST\":" + String(linky.IINST) + "," + 
+	"\"IMAX\":" + String(linky.IMAX) + "," + 
+	"\"PAPP\":" + String(linky.PAPP) + "," + 
+	"\"HHPHC\":\"" + linky.HHPHC + "\"," + 
+	"\"MOTDETAT\":\"" + linky.MOTDETAT + "\"}"); });
+	server.on(UriBraces("/ADCO"), []() { server.send(200, "text/plain", linky.ADCO); });
+	server.on(UriBraces("/OPTARIF"), []() { server.send(200, "text/plain", linky.OPTARIF); });
+	server.on(UriBraces("/ISOUSC"), []() { server.send(200, "text/plain", String(linky.ISOUSC)); });
+	server.on(UriBraces("/BASE"), []() { server.send(200, "text/plain", String(linky.BASE)); });
+	server.on(UriBraces("/PTEC"), []() { server.send(200, "text/plain", linky.PTEC); });
+	server.on(UriBraces("/IINST"), []() { server.send(200, "text/plain", String(linky.IINST)); });
+	server.on(UriBraces("/IMAX"), []() { server.send(200, "text/plain", String(linky.IMAX)); });
+	server.on(UriBraces("/PAPP"), []() { server.send(200, "text/plain", String(linky.PAPP)); });
+	server.on(UriBraces("/HHPHC"), []() { server.send(200, "text/plain", linky.HHPHC); });
+	server.on(UriBraces("/MOTDETAT"), []() { server.send(200, "text/plain", linky.MOTDETAT); });
+
+	server.begin();
 	linky.begin();
 }
 
 unsigned long oldTime = 0;
 bool ledON = true;
-bool blinky = false;
-char sec = 0;
+bool blink = false;
 
-String old_ADCO;
-String old_OPTARIF;
-byte old_ISOUSC;
-String old_BASE;
-String old_PTEC;
-int old_IINST;
-int old_IMAX;
-int old_PAPP;
-String old_HHPHC;
-String old_MOTDETAT;
+
 
 void loop()
 {
 
-	if (!client.connected())
+	if (millis() - oldTime >= 1000)
 	{
-		if (!client.connect("linky"))
-		{
-			delay(1000);
-		}
+		ledON = !ledON;
+		oldTime = millis();
+	}
+
+	
+	float ratio = ((float)linky.IINST / linky.ISOUSC); // Abonnement 6Kw
+
+	if (ratio > 1)
+	{ // Possible en cas de dépassement de l'abonnement.
+		ratio = 1;
+	}
+
+	byte red = 30 * ratio;
+	byte green = 30 - red;
+	byte blue = 0;
+
+	blink = ratio >= 1;
+
+	if ((ledON && blink) || !blink)
+	{
+		led.setPixelColor(0, red, green, blue);
 	}
 	else
 	{
-
-		if (millis() - oldTime >= 1000)
-		{
-			ledON = !ledON;
-			oldTime = millis();
-			sec = (sec + 1) % 240;
-		}
-
-		if (old_ADCO != linky.ADCO || (sec % 20) == 0 )
-		{
-			client.publish("linky/ADCO", linky.ADCO.c_str());
-			old_ADCO = linky.ADCO;
-		}
-		if (old_OPTARIF != linky.OPTARIF || (sec % 20) == 0 )
-		{
-			client.publish("linky/OPTARIF", linky.OPTARIF.c_str());
-			old_OPTARIF = linky.OPTARIF;
-		}
-		if (old_ISOUSC != linky.ISOUSC || (sec % 20) == 0 )
-		{
-			client.publish("linky/ISOUSC", String(linky.ISOUSC).c_str());
-			old_ISOUSC = linky.ISOUSC;
-		}
-		if (old_BASE != linky.BASE || (sec % 20) == 0 )
-		{
-			client.publish("linky/BASE", linky.BASE.c_str());
-			old_BASE = linky.BASE;
-		}
-		if (old_PTEC != linky.PTEC || (sec % 20) == 0 )
-		{
-			client.publish("linky/PTEC", linky.PTEC.c_str());
-			old_PTEC = linky.PTEC;
-		}
-		if (old_IINST != linky.IINST || (sec % 20) == 0 )
-		{
-			client.publish("linky/IINST", String(linky.IINST).c_str());
-			old_IINST = linky.IINST;
-		}
-		if (old_IMAX != linky.IMAX || (sec % 20) == 0 )
-		{
-			client.publish("linky/IMAX", String(linky.IMAX).c_str());
-			old_IMAX = linky.IMAX;
-		}
-		if (old_PAPP != linky.PAPP || (sec % 20) == 0 )
-		{
-			client.publish("linky/PAPP", String(linky.PAPP).c_str());
-			old_PAPP = linky.PAPP;
-		}
-		if (old_HHPHC != linky.HHPHC || (sec % 20) == 0 )
-		{
-			client.publish("linky/HHPHC", linky.HHPHC.c_str());
-			old_HHPHC = linky.HHPHC;
-		}
-		if (old_MOTDETAT != linky.MOTDETAT || (sec % 20) == 0 )
-		{
-			client.publish("linky/MOTDETAT", linky.MOTDETAT.c_str());
-			old_MOTDETAT = linky.MOTDETAT;
-		}
-
-		float ratio = ((float)linky.IINST / linky.ISOUSC); // Abonnement 6Kw
-
-		if (ratio > 1)
-		{ // Possible en cas de dépassement de l'abonnement.
-			ratio = 1;
-		}
-
-		byte red = 30 * ratio;
-		byte green = 30 - red;
-		byte blue = 0;
-
-		blinky = ratio >= 1;
-
-	
-		if ((ledON && blinky) || !blinky)
-		{
-			led.setPixelColor(0, red, green, blue);
-		}
-		else
-		{
-			led.setPixelColor(0, 0, 0, 0);
-		}
+		led.setPixelColor(0, 0, 0, 0);
 	}
 
 	led.show();
-	client.loop();
 	linky.loop();
+	server.handleClient();
 }
-
-// 0	360
-// 0	65535
-// 100/360*65535
